@@ -5,9 +5,29 @@ on:
     types: [created]
 
 jobs:
+  check-base-branch:
+    name: Check PR Base Branch
+    runs-on: ubuntu-22.04
+    if: github.event.issue.pull_request && contains(github.event.comment.body, 'TEST:')
+    outputs:
+      base_ref: ${{ steps.pr_info.outputs.base_ref }}
+    steps:
+      - name: Get PR base branch
+        id: pr_info
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            core.setOutput('base_ref', pr.data.base.ref);
+
   test-suite:
     name: Build Containers and Run Tests
-    if: github.event.issue.pull_request && contains(github.event.comment.body, 'TEST:')
+    needs: check-base-branch
+    if: needs.check-base-branch.outputs.base_ref == 'release44'
     runs-on: ubuntu-22.04
     steps:
       # Step 1: Determine the correct branch associated with the PR
